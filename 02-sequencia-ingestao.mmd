@@ -1,0 +1,55 @@
+%% Sequencia - Fluxo de Ingestao e Processamento do HUDSON S1
+sequenceDiagram
+    autonumber
+    participant Z as Zeev BPMS
+    participant E as Emissores (SIENGE, AutoDoc, M365)
+    participant API as API HUDSON
+    participant Q as Quarentena
+    participant N as Nucleo HUDSON
+    participant IA as Agente IA (LLM + Harness)
+    participant DB as PostgreSQL hudson
+    participant VDB as ChromaDB
+    participant S4 as MYCROFT S4
+
+    E->>API: POST /items (JSON + binario)
+    API->>API: Hash SHA-256 em streaming
+    API->>DB: 1o registro no custody_log
+    API-->>Z: HTTP 201 Created + recibo hash
+
+    alt Chamada falhou
+        API--xZ: Erro - Zeev BLOQUEIA etapa de negocio
+    end
+
+    rect rgb(240, 245, 255)
+        note over Q: Ante-sala - triagem leve
+        API->>Q: Item em quarentena
+        Q->>Q: ClamAV + magic bytes + schema + remetente
+        alt Aprovado
+            Q->>N: Segue para o nucleo
+        else Retido
+            Q->>DB: status retido + motivo no custody_log
+            note over Q: Revisao humana - nunca apagado
+            Q->>N: Liberado pelo analista (se aprovado)
+        end
+    end
+
+    rect rgb(243, 236, 255)
+        note over N,IA: Nucleo - tratamento pelo Agente IA
+        N->>N: Deduplicacao exata (is_duplicate_of)
+        N->>N: Roteamento pelas 6 Estantes
+        N->>N: OCR Tesseract camada dupla
+        N->>IA: Texto extraido para NER
+        IA->>DB: Consulta catalogo de entidades
+        IA->>DB: NER - PF, PJ, valores, datas, WBS
+        IA->>DB: Resolucao de entidades (criar no ou merge)
+        IA->>DB: Povoamento da tabela relationships
+        IA->>S4: Telemetria (tokens, latencia)
+    end
+
+    N->>DB: Indexacao tsvector
+    N->>VDB: Embeddings vetoriais
+    N->>DB: Lock de Custodia - status processed + log imutavel
+
+    opt Auditoria transversal
+        S4-->>IA: prompt_registry travado por versao
+    end
