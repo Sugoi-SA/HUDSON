@@ -1,0 +1,74 @@
+%% Flowchart - Arquitetura completa do HUDSON S1 (sintaxe 100% estavel)
+%% Alternativa ao C4 (01-c4-contexto.mmd) caso o renderizador nao suporte C4Context
+flowchart TD
+    subgraph FONTES["Fontes - geram arquivos e informacao"]
+        ZEEV["Zeev BPMS<br/>+ formulario declarativo"]
+        SIENGE["SIENGE<br/>NFs e medicoes"]
+        M365["SharePoint, Outlook, Teams"]
+        OUTROS["AutoDoc, Conciliacao, CV, OT, legados"]
+    end
+
+    subgraph API["API REST POST /items"]
+        A1{"Chamada OK?"}
+    end
+
+    subgraph HUDSON["HUDSON - Recepcao"]
+        H1["Hash SHA-256 em streaming"]
+        H2["1o registro no custody_log"]
+        H3["Formulario declarativo<br/>etiqueta - nunca filtro"]
+    end
+
+    subgraph QUAREN["Quarentena - ante-sala"]
+        Q1["ClamAV, magic bytes,<br/>schema, remetente"]
+        Q2{"Aprovado?"}
+        Q3["Status RETIDO<br/>revisao humana"]
+        Q4{"Liberado pelo analista?"}
+    end
+
+    subgraph NUCLEO["Nucleo - Agente IA"]
+        N1{"Duplicata?"}
+        N2["Marca is_duplicate_of<br/>origem preservada"]
+        N3["Roteamento 6 Estantes"]
+        N4["OCR Tesseract"]
+        N5["NER pela LLM"]
+        N6["Resolucao de entidades<br/>tabela relationships"]
+        N7["Indexacao tsvector + ChromaDB"]
+        N8{"Processamento OK?"}
+        N9["Flag de reprocessamento<br/>telemetria S4"]
+    end
+
+    subgraph LOCK["Lock de Custodia"]
+        L1["status processed<br/>log imutavel"]
+    end
+
+    subgraph CONSUMO["Biblioteca Soberana"]
+        C1["Chat Tradutor + endpoints<br/>search, authenticity, custody-log,<br/>timeline, communication-map"]
+        C2{"Consulta auditada?"}
+        C3["Registro no custody_log"]
+        C4["WATSON S2 - HOLMES S3 -<br/>MYCROFT S4 - corporativos"]
+    end
+
+    ZEEV --> A1
+    SIENGE --> A1
+    M365 --> A1
+    OUTROS --> A1
+
+    A1 -- "NAO" --> ZBLOCK["Zeev BLOQUEIA a etapa de negocio"]
+    A1 -- "SIM" --> H1
+    H1 --> H2 --> H3 --> Q1 --> Q2
+
+    Q2 -- "NAO" --> Q3 --> Q4
+    Q4 -- "NAO" --> Q3
+    Q4 -- "SIM" --> N1
+    Q2 -- "SIM" --> N1
+
+    N1 -- "SIM" --> N2
+    N1 -- "NAO" --> N3
+    N3 --> N4 --> N5 --> N6 --> N7 --> N8
+
+    N8 -- "NAO" --> N9 --> N3
+    N8 -- "SIM" --> L1 --> C1
+
+    C1 --> C2
+    C2 -- "SIM - toda consulta" --> C3 --> C4
+    C2 -- "NAO - acesso negado" --> X1["RBAC bloqueia<br/>e registra tentativa"]
