@@ -1,0 +1,63 @@
+%% C4 Nivel 2 - Containers do HUDSON S1
+%% Aviso: suporte a C4 no Mermaid e experimental. Ver README para nota tecnica.
+C4Container
+  title C4 Nivel 2 - Containers do HUDSON S1
+
+  Person(corporativo, "Consumidor Corporativo", "Advogado, gestor, auditor, due diligence")
+  Person(analista, "Analista de Quarentena", "Revisa itens retidos - nunca apaga")
+  Person(usu, "Usuario do Canal Humano", "Preenche formulario no Zeev")
+
+  System_Ext(zeev, "Zeev BPMS", "Orquestra e trava etapas de negocio")
+  System_Ext(sistemas, "SIENGE, AutoDoc, Conciliacao, CV, OT", "Emissores por webhook")
+  System_Ext(m365, "Microsoft 365", "SharePoint, Outlook e Teams")
+  System_Ext(legados, "Legados", "SMB/NFS e caixas pst/msg")
+  System_Ext(watson, "WATSON S2", "Auditoria do acervo")
+  System_Ext(holmes, "HOLMES S3", "Sindicancia - leitura")
+  System_Ext(mycroft, "MYCROFT S4", "Governanca de IA")
+  System_Ext(llm, "LLM Provider", "Modelo de linguagem - motor NER e tradutor")
+
+  Container_Boundary(hb, "HUDSON S1", "Ubuntu Server - Docker Compose"){
+
+    Container(api, "API REST", "FastAPI", "POST /items - endpoints de leitura - contratos deterministicos")
+
+    Container(quar, "Quarentena - Ante-sala", "ClamAV + python-magic + Pydantic", "Triagem leve e adaptador de formato dos 6 emissores")
+
+    Container(agents, "Celery Workers", "Python", "OCR transcricao varredura passiva e indexacao")
+
+    ContainerDb(pg, "PostgreSQL hudson", "PostgreSQL 15", "Entidades relationships tsvector e custody_log append-only")
+
+    ContainerDb(redis, "Redis", "Redis", "Filas Celery e amortecimento de picos")
+
+    ContainerDb(vdb, "ChromaDB", "ChromaDB", "Embeddings e busca vetorial")
+
+    ContainerDb(storage, "Object Storage", "Imutavel", "Binarios originais - nunca sobrescritos - storage_path")
+
+    Container(agent, "Agente de IA", "LLM + Harness", "NER resolucao de entidades e Chat Tradutor - vedacoes no System Prompt")
+  }
+
+  Rel(sistemas, api, "Envia JSON + binario", "Webhook POST /items")
+  Rel(zeev, api, "Arquivo + formulario declarativo", "POST /items - espera HTTP 201")
+  Rel(api, zeev, "Recibo SHA-256 ou erro de trava", "HTTP 201 / timeout")
+  Rel(m365, api, "Documentos e-mails mensagens", "Graph API conector unico")
+  Rel(legados, agents, "Varredura agendada read-only", "SMB/NFS pst/msg")
+  Rel(usu, zeev, "Preenche formulario declarativo", "4 campos minimos")
+
+  Rel(api, quar, "Item recebido para triagem", "Interno")
+  Rel(quar, agents, "Aprovado entra no nucleo", "Fila Redis")
+  Rel(quar, pg, "Status retido + motivo", "custody_log")
+  Rel(analista, quar, "Revisa e libera itens retidos", "Fila de revisao")
+
+  Rel(agents, agent, "Texto extraido para NER e resolucao", "Interno")
+  Rel(agent, llm, "Chamadas de inferencia", "API - telemetria obrigatoria")
+  Rel(agent, pg, "Catalogo de entidades e relationships", "Leitura e escrita controlada")
+  Rel(agents, storage, "Grava original una vez", "Object Storage imutavel")
+  Rel(agents, pg, "Indexacao tsvector e lock de custodia", "custody_log")
+  Rel(agents, vdb, "Indexacao vetorial", "Embeddings")
+
+  Rel(corporativo, api, "Consulta via Chat Tradutor e endpoints", "/search /authenticity /custody-log /timeline")
+  Rel(holmes, api, "Consome base para sindicancia", "Leitura auditada")
+  Rel(watson, api, "s1_audit_findings", "Reprocessamento de indices")
+  Rel(api, mycroft, "Telemetria de LLM", "llmops_telemetry")
+  Rel(mycroft, agent, "System Prompt travado por versao", "prompt_registry")
+
+  SHOW_LEGEND()
