@@ -1,0 +1,32 @@
+# P6 — Exceção da LLM (falha de NER e reprocessamento)
+
+```mermaid
+flowchart TD
+    A["Item chega para OCR e NER"] --> B{"NER e resolucao concluidas com sucesso?"}
+    B -- "SIM" --> C["Segue para Resolucao de Entidades - fluxo normal"]
+    B -- "NAO - falha ou resultado inconclusivo" --> D["Registra telemetria em llmops_telemetry<br/>tokens, latencia, motivo da falha"]
+    D --> E["Item mantem extracao parcial<br/>dados ja identificados sao preservados"]
+    E --> F["Marca flag_reprocess = true no item"]
+    F --> G["Pipeline principal continua<br/>indexacao e demais etapas NAO sao bloqueadas"]
+    G --> H["Item fica disponivel para consulta<br/>com marcacao explicita de extracao parcial"]
+
+    F --> I["Worker de reprocessamento recolhe<br/>itens com flag_reprocess = true"]
+    I --> J["Worker tenta nova chamada de NER e resolucao"]
+    J --> K{"Nova tentativa teve sucesso?"}
+    K -- "SIM" --> L["Remove flag_reprocess<br/>atualiza entities e relationships"]
+    L --> M["Registra telemetria de sucesso em llmops_telemetry"]
+    M --> C
+    K -- "NAO" --> N["Incrementa contador de tentativas"]
+    N --> O{"Tentativas menor que limite N?"}
+    O -- "SIM" --> J
+    O -- "NAO - limite excedido" --> P["Escalona para fila de revisao humana - analista"]
+    P --> Q["Analista revisa manualmente<br/>resolve entidades ou mantem extracao parcial"]
+    Q --> R["Registra decisao do analista no custody_log"]
+
+    NOTA["Em nenhum momento deste fluxo o item e removido<br/>ou o pipeline principal e bloqueado pela falha da LLM"]
+    G -.-> NOTA
+
+    style NOTA fill:transparent,stroke-dasharray: 5 5
+    style D fill:#fff8e0,stroke:#cc9900
+    style P fill:#fff0f0,stroke:#cc0000
+```

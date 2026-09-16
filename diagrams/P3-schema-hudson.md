@@ -1,0 +1,67 @@
+# P3 — Schema `hudson` (erDiagram)
+
+```mermaid
+erDiagram
+    ITEMS {
+        uuid id PK
+        text hash_sha256 UK "UNIQUE - calculado em streaming na recepcao"
+        text storage_path "caminho no Object Storage imutavel"
+        text status "espelha o stateDiagram P1 - nunca reflete exclusao"
+        text estante FK "referencia ESTANT_TYPES"
+        text cota UK "Cota HUDSON - endereco unico - ver S8"
+        text obra_wbs "vinculo obra, WBS ou EAP"
+        uuid duplicate_of_item_id FK "auto-relacionamento - preenchido so quando duplicata exata"
+        timestamptz received_at "primeiro registro - antes de qualquer outra etapa"
+        timestamptz processed_at "preenchido no LOCK DE CUSTODIA"
+    }
+
+    ENTITIES {
+        uuid id PK
+        text type "PF, PJ_CNPJ, valor, data, clausula, WBS"
+        text canonical_name
+        text_array aliases "variantes e apelidos conhecidos"
+    }
+
+    RELATIONSHIPS {
+        uuid id PK
+        uuid entity_a_id FK
+        uuid entity_b_id FK
+        text relation_type
+        uuid source_item_id FK "item que evidenciou o vinculo"
+        timestamptz created_at
+    }
+
+    CUSTODY_LOG {
+        bigserial id PK
+        uuid item_id FK "nulo apenas em evento de consulta ampla sem item unico"
+        text event_type "CHECK IN (recebimento retencao liberacao deduplicacao roteamento processamento falha_llm reprocessamento indexacao lock_custodia consulta alerta_integridade)"
+        text actor "sistema ou usuario que gerou o evento"
+        text reason "obrigatorio quando event_type = retencao"
+        timestamptz timestamp
+        text payload_hash "hash do evento - evidencia contra adulteracao"
+    }
+
+    DECLARATIONS {
+        uuid id PK
+        uuid item_id FK "UNIQUE - um formulario ou metadado por item"
+        text origem_setor "login de quem declarou"
+        text tipo_material
+        text vinculo_obra_wbs
+        text observacao_livre
+        text fonte "formulario_humano ou metadados_automaticos"
+        timestamptz created_at
+    }
+
+    ESTANT_TYPES {
+        text codigo PK "document_text communication engineering_drawings structured_data image audio_video"
+        text descricao
+    }
+
+    ITEMS }o--|| ESTANT_TYPES : "roteado para"
+    ITEMS ||--o{ CUSTODY_LOG : "gera eventos de"
+    ITEMS ||--|| DECLARATIONS : "recebe etiqueta de"
+    ITEMS }o--o| ITEMS : "e duplicata de - auto FK"
+    ENTITIES ||--o{ RELATIONSHIPS : "participa como entidade A"
+    ENTITIES ||--o{ RELATIONSHIPS : "participa como entidade B"
+    ITEMS ||--o{ RELATIONSHIPS : "evidencia vinculo em"
+```

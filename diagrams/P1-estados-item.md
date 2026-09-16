@@ -1,0 +1,73 @@
+# P1 — Estados do Item (stateDiagram-v2)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Recebido
+
+    Recebido --> Hasheado : hash SHA256 em streaming - P1 hash primeiro
+    Hasheado --> Declarado : formulario declarativo (canal humano) ou metadados do payload (canais automaticos)
+    Declarado --> EmQuarentena : entra na ante-sala - triagem leve
+
+    EmQuarentena --> Aprovado : ClamAV + magic bytes + schema + remetente OK
+    EmQuarentena --> Retido : falha em qualquer validacao leve
+
+    Retido --> RevisaoHumana : status retido + motivo registrado no custody_log
+    RevisaoHumana --> Liberado : analista libera o item
+    RevisaoHumana --> RetidoPermanente : analista fecha sem liberar
+    Liberado --> Aprovado : reentra no fluxo principal
+
+    RetidoPermanente --> [*] : estado terminal - permanece retido para sempre
+
+    note right of RetidoPermanente
+        PROIBIDO: RetidoPermanente para Excluido
+        Zero Exclusao (P3) - binario original jamais e apagado
+        ou sobrescrito, mesmo em retencao permanente
+    end note
+
+    Aprovado --> Deduplicado : verificacao de hash exato
+
+    Deduplicado --> Original : hash inedito no acervo
+    Deduplicado --> Duplicata : hash ja existe no acervo
+
+    Duplicata --> [*] : is_duplicate_of preenchido - origem preservada - fim do processamento
+
+    note right of Duplicata
+        PROIBIDO: Duplicata para Excluido
+        Duplicata nao e removida - apenas marcada e ligada
+        ao item original via is_duplicate_of
+    end note
+
+    Original --> Roteado : roteamento deterministico pelas 6 Estantes
+
+    Roteado --> OcrNerProcessado : OCR Tesseract camada dupla + NER pela LLM
+
+    OcrNerProcessado --> EntidadesResolvidas : resolucao de entidades - criar no ou merge
+    OcrNerProcessado --> FalhaLLM : NER falhou ou resultado inconclusivo
+
+    FalhaLLM --> FlaggedReprocess : telemetria registrada em llmops_telemetry - item segue com extracao parcial - NAO bloqueia pipeline
+    FlaggedReprocess --> OcrNerProcessado : worker de reprocessamento tenta novamente ate N vezes
+    FlaggedReprocess --> RevisaoHumana : limite de N tentativas excedido - escalonamento para analista
+
+    EntidadesResolvidas --> Indexado : tsvector PostgreSQL + embeddings ChromaDB
+
+    Indexado --> Locked : LOCK DE CUSTODIA - status processed - log imutavel
+
+    note right of Locked
+        PROIBIDO: Locked para qualquer estado de edicao ou exclusao do binario
+        A partir daqui o binario original e o registro de custodia sao
+        imutaveis - apenas metadados de indice podem ser reprocessados
+        via WATSON S2 -> s1_audit_findings -> reindexacao
+    end note
+
+    Locked --> Consultado : consulta via endpoints de leitura ou Chat Tradutor
+    Consultado --> Locked : consulta nao altera o estado do item
+    Consultado --> Consultado : cada nova consulta gera novo registro no custody_log
+
+    state Excluido
+
+    note right of Excluido
+        ESTADO PROIBIDO EM TODO O SISTEMA - Zero Exclusao (P3)
+        Nenhuma transicao de nenhum estado leva a este estado
+        Representado apenas para deixar a proibicao explicita
+    end note
+```

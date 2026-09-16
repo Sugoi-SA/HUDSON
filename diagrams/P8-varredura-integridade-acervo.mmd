@@ -1,0 +1,41 @@
+flowchart TD
+    A["Celery Beat - agendamento periodico"] --> B["Dispara tarefa de varredura de integridade"]
+    B --> C["Seleciona lote de itens processed - paginado"]
+    C --> D["Para cada item do lote"]
+    D --> E["Le o binario original do Object Storage"]
+    E --> F["Recomputa SHA256 em streaming"]
+    F --> G{"Hash recomputado igual a items.hash_sha256?"}
+
+    G -- "SIM" --> H["Item integro - segue para o proximo do lote"]
+    G -- "NAO" --> I["Bloqueia o item para LEITURA<br/>flag de integridade comprometida"]
+    I --> J["Registra alerta critico no custody_log<br/>event_type alerta_integridade"]
+    J --> K["Encaminha para fila de revisao humana"]
+    K --> L["Notifica MYCROFT S4 - divergencia de integridade"]
+    L --> M
+
+    H --> M{"Ainda ha itens no lote?"}
+    M -- "SIM" --> D
+    M -- "NAO" --> N["Lote concluido"]
+
+    N --> O["Verifica integridade estrutural do custody_log - append-only"]
+    O --> P{"custody_log intacto - sem alteracao ou remocao de linhas?"}
+    P -- "SIM" --> Q["Inclui verificacao do custody_log no relatorio"]
+    P -- "NAO - anomalia detectada" --> R["Registra alerta critico de violacao de append-only"]
+    R --> S["Notifica MYCROFT S4 - violacao critica de custodia"]
+    S --> Q
+
+    Q --> T{"Todos os itens do lote integros?"}
+    T -- "SIM" --> U["Gera relatorio de integridade do lote"]
+    T -- "NAO" --> V["Gera relatorio de integridade com itens divergentes listados"]
+    U --> W["Envia relatorio a MYCROFT S4"]
+    V --> W
+
+    W --> X["Proximo lote agendado<br/>varredura continua ate cobrir todo o acervo"]
+
+    NOTA["Em nenhuma etapa desta varredura um binario ou uma linha de custody_log<br/>e apagada ou sobrescrita - itens divergentes sao bloqueados de LEITURA apenas - nunca removidos"]
+    I -.-> NOTA
+    R -.-> NOTA
+
+    style NOTA fill:transparent,stroke-dasharray: 5 5
+    style I fill:#fff0f0,stroke:#cc0000
+    style R fill:#fff0f0,stroke:#cc0000

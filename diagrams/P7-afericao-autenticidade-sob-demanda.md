@@ -1,0 +1,38 @@
+# P7 — Aferição de Autenticidade sob Demanda
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ADV as Advogado ou Consumidor - prova pericial ou due diligence
+    participant API as API HUDSON - endpoint slash authenticity
+    participant DB as PostgreSQL hudson - items e custody_log
+    participant ST as Object Storage - binario imutavel
+    participant S4 as MYCROFT S4 - governanca
+
+    note over ADV,API: mesma rota GET slash authenticity do item b em P5 - aqui detalhada para o cenario de prova sob demanda
+    ADV->>API: solicita prova de autenticidade - item_id ou Cota HUDSON
+
+    API->>DB: busca registro do item - hash_sha256, storage_path, cota, received_at, processed_at
+    DB-->>API: dados do item
+
+    API->>ST: le o binario original pelo storage_path
+    ST-->>API: conteudo binario
+
+    API->>API: recomputa SHA256 do binario em streaming
+    API->>API: compara hash recomputado com hash_sha256 registrado
+
+    alt hash recomputado igual ao registrado - autenticidade confirmada
+        API->>DB: busca todas as linhas do custody_log do item - ordem cronologica completa
+        DB-->>API: cadeia de custodia integral
+        API->>API: monta certidao - hash original, hash recomputado, timestamps de cada evento, cadeia de custodia integral
+        API->>DB: registra evento de consulta no custody_log - event_type consulta - referencia a emissao da certidao
+        API-->>ADV: certidao de autenticidade - documento pronto para uso pericial ou juridico
+    else hash recomputado diferente do registrado - divergencia critica
+        API->>DB: registra alerta critico no custody_log - event_type alerta_integridade - hash esperado versus hash encontrado
+        API->>S4: notifica divergencia de integridade - requer investigacao
+        API->>DB: registra evento de consulta no custody_log - event_type consulta
+        API-->>ADV: divergencia critica - integridade do binario comprometida - documento nao pode ser certificado
+    end
+
+    note over API,DB: a rota e idempotente por hash - a mesma consulta repetida produz o mesmo resultado, salvo alteracao real do binario
+```

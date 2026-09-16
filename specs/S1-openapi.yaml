@@ -1,0 +1,395 @@
+openapi: 3.1.0
+info:
+  title: HUDSON S1 API
+  version: "1.0.0"
+  description: >
+    Biblioteca Soberana da SUGOI S.A. - custodiante forense e data warehouse
+    corporativo. POST /items e o unico ponto de ingestao (webhook sincrono e
+    canal humano via formulario declarativo dentro da tarefa do Zeev). Os
+    demais endpoints sao determinísticos e somente leitura (P7 - Biblioteca
+    Soberana): consulta jamais bloqueia ingestao e toda consulta gera um
+    registro em custody_log antes de retornar (ver diagrama P5).
+servers:
+  - url: https://hudson.sugoi.internal/api/v1
+
+paths:
+  /health:
+    get:
+      summary: Verifica disponibilidade da API e das dependencias criticas
+      operationId: health
+      security: []
+      responses:
+        "200":
+          description: Servico saudavel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+                  postgres: { type: string, enum: [ok, degraded, down] }
+                  redis: { type: string, enum: [ok, degraded, down] }
+                  chromadb: { type: string, enum: [ok, degraded, down] }
+                  object_storage: { type: string, enum: [ok, degraded, down] }
+        "503":
+          description: Uma ou mais dependencias criticas indisponiveis
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  /items:
+    post:
+      summary: >
+        Ingestao unica dos 6 emissores por webhook (SIENGE, AutoDoc,
+        Conciliacao Bancaria, CV, OT, Zeev) e do canal humano com formulario
+        declarativo. Hash SHA-256 em streaming acontece antes de qualquer
+        outra etapa (P1 do contexto unico). Idempotente por hash - reenvio do
+        mesmo binario nao reprocessa.
+      operationId: criarItem
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/ItemEnvelopeMultipart" }
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemEnvelopeJson" }
+      responses:
+        "201":
+          description: Item novo - hasheado e registrado no custody_log
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReciboIngestao" }
+        "200":
+          description: >
+            Idempotencia - hash_sha256 ja existente no acervo. Nao reprocessa
+            o binario; devolve o recibo do item original com is_duplicate_of
+            referenciando o item ja registrado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReciboIngestao" }
+        "400":
+          description: Payload malformado ou schema do emissor invalido
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401":
+          description: Chamada nao autenticada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "403":
+          description: Remetente nao autorizado para este contrato de emissor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "429":
+          description: Rate limit excedido para este emissor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "500":
+          description: >
+            Falha na chamada - na trava sincrona do Zeev, este erro bloqueia
+            a etapa de negocio (ver diagrama de sequencia de ingestao)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  /search:
+    get:
+      summary: Chat Tradutor - pergunta em linguagem natural traduzida em filtros deterministicos
+      operationId: buscarAcervo
+      parameters:
+        - name: pergunta
+          in: query
+          required: true
+          schema: { type: string }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Resposta documentada - cita Cota HUDSON, hash e fontes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RespostaBusca" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/AcessoNegado" }
+
+  /authenticity:
+    get:
+      summary: >
+        Recomputa o SHA-256 do binario no Object Storage e compara com o
+        hash registrado - certidao de autenticidade ou alerta critico
+        (ver diagramas P5b, P7 e P8)
+      operationId: aferirAutenticidade
+      parameters:
+        - name: item_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: cota
+          in: query
+          required: false
+          description: Cota HUDSON - alternativa ao item_id
+          schema: { type: string }
+      responses:
+        "200":
+          description: Hash igual - certidao emitida
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CertidaoAutenticidade" }
+        "409":
+          description: Hash diferente - divergencia critica de integridade
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AlertaIntegridade" }
+        "404":
+          description: Item nao encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/AcessoNegado" }
+
+  /custody-log:
+    get:
+      summary: Linhas de custodia de um item - append-only
+      operationId: consultarCustodyLog
+      parameters:
+        - name: item_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Cadeia de custodia completa, ordem cronologica
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CustodyLogEntry" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/AcessoNegado" }
+
+  /timeline:
+    get:
+      summary: Linha do tempo de eventos relacionados a uma entidade ou item
+      operationId: consultarTimeline
+      parameters:
+        - name: entity_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: item_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Eventos ordenados cronologicamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TimelineEntry" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/AcessoNegado" }
+
+  /communication-map:
+    get:
+      summary: Grafo de relacionamentos entre entidades a partir da tabela relationships
+      operationId: consultarCommunicationMap
+      parameters:
+        - name: entity_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: profundidade
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 3, default: 1 }
+      responses:
+        "200":
+          description: Nos e arestas do grafo de relacionamentos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommunicationMap" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/AcessoNegado" }
+
+components:
+  responses:
+    NaoAutenticado:
+      description: Chamada nao autenticada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+    AcessoNegado:
+      description: RBAC nega o acesso para este perfil - tentativa registrada no custody_log
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+
+  schemas:
+    DeclaracaoFormulario:
+      type: object
+      description: Formulario declarativo - etiqueta, nunca filtro (ver contexto unico)
+      required: [origem_setor, tipo_material]
+      properties:
+        origem_setor: { type: string }
+        tipo_material: { type: string }
+        vinculo_obra_wbs: { type: string }
+        observacao_livre: { type: string }
+
+    ItemEnvelopeMultipart:
+      type: object
+      description: Upload humano - arquivo binario mais formulario declarativo dentro da tarefa do Zeev
+      required: [origem, arquivo]
+      properties:
+        origem:
+          type: string
+          enum: [zeev_humano]
+        arquivo:
+          type: string
+          format: binary
+        declaracao: { $ref: "#/components/schemas/DeclaracaoFormulario" }
+
+    ItemEnvelopeJson:
+      type: object
+      description: >
+        Envelope unico dos 6 emissores por webhook. O adaptador da
+        Quarentena traduz o formato nativo de cada emissor para esta
+        estrutura; canais automaticos preenchem metadados_declaracao em vez
+        de formulario humano.
+      required: [origem, referencia_externa, conteudo_base64]
+      properties:
+        origem:
+          type: string
+          enum: [sienge, autodoc, conciliacao_bancaria, cv, ot, zeev_sistema]
+        referencia_externa:
+          type: string
+          description: identificador do documento no sistema de origem
+        tarefa_zeev_id:
+          type: string
+          description: correlaciona com uma tarefa assincrona pendente no Zeev, quando aplicavel
+        conteudo_base64:
+          type: string
+          contentEncoding: base64
+        metadados_declaracao: { $ref: "#/components/schemas/DeclaracaoFormulario" }
+
+    ReciboIngestao:
+      type: object
+      properties:
+        item_id: { type: string, format: uuid }
+        hash_sha256: { type: string }
+        cota: { type: string, description: "Cota HUDSON - ver S8" }
+        status: { type: string, description: "estado inicial - ver diagrama P1" }
+        is_duplicate_of: { type: string, format: uuid, nullable: true }
+        received_at: { type: string, format: date-time }
+
+    CertidaoAutenticidade:
+      type: object
+      properties:
+        item_id: { type: string, format: uuid }
+        cota: { type: string }
+        hash_original: { type: string }
+        hash_recomputado: { type: string }
+        integro: { type: boolean, enum: [true] }
+        cadeia_custodia:
+          type: array
+          items: { $ref: "#/components/schemas/CustodyLogEntry" }
+        emitida_em: { type: string, format: date-time }
+
+    AlertaIntegridade:
+      type: object
+      properties:
+        item_id: { type: string, format: uuid }
+        hash_esperado: { type: string }
+        hash_encontrado: { type: string }
+        integro: { type: boolean, enum: [false] }
+        notificado_mycroft_s4: { type: boolean }
+
+    CustodyLogEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        item_id: { type: string, format: uuid, nullable: true }
+        event_type:
+          type: string
+          enum:
+            - recebimento
+            - retencao
+            - liberacao
+            - deduplicacao
+            - roteamento
+            - processamento
+            - falha_llm
+            - reprocessamento
+            - indexacao
+            - lock_custodia
+            - consulta
+            - alerta_integridade
+        actor: { type: string }
+        reason: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+        payload_hash: { type: string }
+
+    RespostaBusca:
+      type: object
+      properties:
+        pergunta: { type: string }
+        filtros_aplicados: { type: object }
+        resultados:
+          type: array
+          items:
+            type: object
+            properties:
+              item_id: { type: string, format: uuid }
+              cota: { type: string }
+              trecho: { type: string }
+        proximo_cursor: { type: string, nullable: true }
+
+    TimelineEntry:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        item_id: { type: string, format: uuid, nullable: true }
+        entity_id: { type: string, format: uuid, nullable: true }
+        descricao: { type: string }
+
+    CommunicationMap:
+      type: object
+      properties:
+        nos:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_id: { type: string, format: uuid }
+              canonical_name: { type: string }
+              type: { type: string }
+        arestas:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_a_id: { type: string, format: uuid }
+              entity_b_id: { type: string, format: uuid }
+              relation_type: { type: string }
+              source_item_id: { type: string, format: uuid }
+
+    Erro:
+      type: object
+      properties:
+        codigo: { type: string }
+        mensagem: { type: string }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - bearerAuth: []

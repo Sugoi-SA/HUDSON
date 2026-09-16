@@ -1,0 +1,42 @@
+sequenceDiagram
+    autonumber
+    participant U as Usuario ou Setor
+    participant Z as Zeev BPMS
+    participant SLA as Monitor de SLA do Zeev
+    participant CANAL as Outro Canal - SharePoint, M365 ou Webhook
+    participant API as API HUDSON
+    participant DB as PostgreSQL hudson - custody_log
+
+    U->>Z: Abre tarefa assincrona vinculada a um item esperado
+    Z->>Z: Registra prazo de SLA para a tarefa
+    Z->>SLA: Inicia contagem do SLA
+
+    note over CANAL,API: arquivo chega por canal diferente do Zeev - Zeev nao participa desta chamada
+    CANAL->>API: Envia arquivo - SharePoint, Graph API M365 ou webhook de outro emissor
+    API->>API: Hash SHA256 em streaming
+    API->>DB: Registra recebimento no custody_log - com referencia a tarefa do Zeev quando informada
+    API-->>CANAL: HTTP 201 Created mais recibo hash
+
+    note over API,Z: HUDSON confirma o recebimento ao Zeev por qualquer canal disponivel - callback, webhook ou API do Zeev
+    API->>Z: Confirma recebimento do item vinculado a tarefa
+
+    alt confirmacao chega dentro do SLA
+        Z->>DB: Consulta custody_log para validar o recibo - auditoria opcional
+        Z->>Z: Fecha a tarefa - SLA cumprido
+        Z-->>U: Notifica conclusao da tarefa
+    else SLA vencido antes da confirmacao
+        SLA->>Z: Dispara timeout do SLA
+        Z->>Z: Bloqueia a etapa de negocio ou escalona para o gestor
+        Z-->>U: Notifica bloqueio ou escalonamento
+        opt confirmacao chega apos o timeout
+            API->>Z: Confirmacao tardia do mesmo item
+            Z->>Z: Reavalia a etapa - desbloqueio manual quando aplicavel
+            Z-->>U: Notifica reavaliacao
+        end
+    end
+
+    opt confirmacao duplicada - idempotencia
+        API->>Z: Reenvio da mesma confirmacao - por exemplo, retry de rede
+        Z->>Z: Identifica confirmacao ja processada pelo hash_sha256 do item
+        Z-->>API: Confirmacao ignorada - tarefa permanece fechada uma unica vez
+    end

@@ -1,321 +1,138 @@
-# HUDSON S1 — Arquitetura do Sistema
+# Sugoi-SA/HUDSON — Sistema HUDSON (S1)
 
-Custodiante forense e data warehouse do ecossistema (HUDSON S1, WATSON S2, HOLMES S3, MYCROFT S4). Hash SHA-256 em streaming e `custody_log` append-only garantem a cadeia de custódia de tudo que entra no acervo.
+Biblioteca Soberana da SUGOI S.A.: custodiante forense + data warehouse corporativo.
+Hash SHA-256 em streaming na recepção, custódia append-only (`custody_log`), zero
+exclusão de binário, base agnóstica de hipótese e consulta que jamais bloqueia
+ingestão — a trava é sempre de ingestão, nunca de leitura.
 
-Este repositório reúne os cinco diagramas de arquitetura do desenho do sistema, em Mermaid: contexto (C4 Nível 1), containers (C4 Nível 2), componentes do Agente de IA (C4 Nível 3), sequência de ingestão e o flowchart completo.
+Todo item do acervo é:
 
-## ⚠️ Notas técnicas sobre os diagramas C4 (Níveis 1, 2 e 3)
+- **Endereçável** — Cota HUDSON única e determinística ([S8](docs/S8-cota-hudson.md)).
+- **Verificável** — hash SHA-256 recomputável sob demanda + cadeia de custódia
+  completa ([P5](diagrams/P5-consumo-biblioteca-soberana.md),
+  [P7](diagrams/P7-afericao-autenticidade-sob-demanda.md),
+  [P8](diagrams/P8-varredura-integridade-acervo.md)).
+- **Relacional** — entidades e vínculos prontos para cruzamento por terceiros
+  (`entities`/`relationships`), no espírito da Library of Congress / LCC / MARC: um
+  catálogo estruturado, reutilizável por quem consome.
 
-O suporte a C4 (`C4Context`, `C4Container`, `C4Component`) no Mermaid é experimental e varia entre versões de renderizador. Dois problemas foram encontrados, confirmados tanto em teste local (mermaid-cli 11.14.0) quanto no próprio renderizador do GitHub, e já corrigidos nos arquivos `.mmd` deste repositório:
+Este README é o índice mestre do repositório. Índice completo com status de cada
+documento em [`docs/INDEX.md`](docs/INDEX.md).
 
-1. **`SHOW_LEGEND()` quebra o parser** — em todos os três diagramas C4, a diretiva `SHOW_LEGEND()` no fim do bloco causava "Lexical error" tanto localmente quanto na pré-visualização do GitHub. A linha foi **removida** dos três arquivos; sem ela, os diagramas renderizam normalmente. Se precisar da legenda, use o Flowchart (item 5), que tem uma legenda equivalente embutida nos próprios rótulos, ou adicione `SHOW_LEGEND()` manualmente e valide no seu renderizador antes de usar.
-2. **`Container_Bound` não é um macro válido** — os diagramas de Nível 2 e 3, como escritos originalmente, usavam `Container_Bound(...)`. O nome correto do macro no Mermaid é `Container_Boundary(...)`. Esse é um erro de sintaxe genuíno (não uma questão de versão do renderizador) e foi corrigido.
+## Estrutura do repositório
 
-## Diagramas
-
-### 1. C4 Model — Contexto (Nível 1)
-
-`01-c4-contexto.mmd` — validado (renderiza sem erros).
-
-```mermaid
-C4Context
-  title C4 Nivel 1 - Contexto do Sistema HUDSON S1
-
-  Person(corporativo, "Consumidor Corporativo", "Advogado, gestor, auditor, due diligence e setores")
-  Person(analista, "Analista de Quarentena", "Revisa itens retidos - nunca apaga")
-  Person(gov, "Gestor de Governanca S4", "Aprova versoes do System Prompt")
-
-  System(hudson, "HUDSON S1", "Custodiante forense e data warehouse - hash SHA-256 e custody_log append-only")
-  System(watson, "WATSON S2", "Auditoria do acervo")
-  System(holmes, "HOLMES S3", "Sindicancia - somente leitura")
-  System(mycroft, "MYCROFT S4", "Governanca de IA - telemetria e prompt_registry")
-
-  System_Ext(zeev, "Zeev BPMS", "Orquestra tarefas e mantem travas de ingestao")
-  System_Ext(sienge, "SIENGE", "ERP - NFs, ordens e medicoes")
-  System_Ext(autodoc, "AutoDoc", "Pranchas de projeto e ARTs")
-  System_Ext(bancaria, "Conciliacao Bancaria", "Comprovantes e extratos")
-  System_Ext(m365, "Microsoft 365", "SharePoint, Outlook e Teams")
-  System_Ext(legados, "Legados", "SMB/NFS e caixas pst e msg")
-
-  Rel(sienge, hudson, "Envia PDFs e XMLs por evento de negocio", "Webhook POST /items")
-  Rel(autodoc, hudson, "Envia pranchas e ARTs", "Webhook POST /items")
-  Rel(bancaria, hudson, "Envia comprovantes apos liquidacao", "Webhook POST /items")
-  Rel(zeev, hudson, "Envia arquivos e formulario declarativo - espera recibo", "POST /items - HTTP 201")
-  Rel(m365, hudson, "Documentos, e-mails e mensagens", "Graph API - conector unico")
-  Rel(legados, hudson, "Varredura passiva agendada", "Celery Workers read-only")
-  Rel(corporativo, hudson, "Consulta o acervo", "Chat Tradutor e endpoints de leitura")
-  Rel(analista, hudson, "Revisa itens retidos", "Fila de revisao humana")
-  Rel(holmes, hudson, "Consome o banco para sindicancia", "APIs de leitura auditada")
-  Rel(watson, hudson, "Reporta falha de indexacao ou entidade omitida", "s1_audit_findings")
-  Rel(hudson, mycroft, "Registra tokens e latencia de LLM", "llmops_telemetry")
-  Rel(gov, mycroft, "Aprova ou bloqueia versoes de prompt", "prompt_registry")
+```
+.
+├── README.md                  # este arquivo — índice mestre
+├── 01-c4-contexto.mmd          # 5 diagramas de arquitetura já existentes (não tocados)
+├── 02-sequencia-ingestao.mmd
+├── 03-flowchart-completo.mmd
+├── 04-c4-container-nivel2.mmd
+├── 05-c4-component-nivel3.mmd
+├── docs/                       # especificações narrativas (S3-S8), decisões (D1-D5) e INDEX.md
+├── diagrams/                   # os 8 diagramas novos (P1-P8), cada um em .mmd + .md
+└── specs/                      # contratos formais/máquina-legíveis (openapi.yaml, schema.sql)
 ```
 
-### 2. Sequência — Ingestão e Processamento
+## Arquitetura — diagramas existentes (mapeados na Fase 0, não reescritos)
 
-`02-sequencia-ingestao.mmd` — validado (renderiza sem erros).
+Fonte de verdade da arquitetura macro, já presente no repositório antes deste pacote
+de engenharia. Referenciados pelos 8 diagramas novos e pelas especificações.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Z as Zeev BPMS
-    participant E as Emissores (SIENGE, AutoDoc, M365)
-    participant API as API HUDSON
-    participant Q as Quarentena
-    participant N as Nucleo HUDSON
-    participant IA as Agente IA (LLM + Harness)
-    participant DB as PostgreSQL hudson
-    participant VDB as ChromaDB
-    participant S4 as MYCROFT S4
+| # | Arquivo | Tipo Mermaid | Escopo |
+|---|---|---|---|
+| 1 | [`01-c4-contexto.mmd`](01-c4-contexto.mmd) | `C4Context` | C4 Nível 1 — Contexto do sistema: HUDSON S1 e as 4 fontes de entrada, WATSON S2, HOLMES S3, MYCROFT S4, consumidores |
+| 2 | [`02-sequencia-ingestao.mmd`](02-sequencia-ingestao.mmd) | `sequenceDiagram` | Ingestão e processamento ponta a ponta: hash → custody_log → quarentena → núcleo → agente IA → indexação → lock |
+| 3 | [`03-flowchart-completo.mmd`](03-flowchart-completo.mmd) | `flowchart TD` | Flowchart completo alternativo e estável ao C4, cobrindo todos os ramos de decisão |
+| 4 | [`04-c4-container-nivel2.mmd`](04-c4-container-nivel2.mmd) | `C4Container` | C4 Nível 2 — Containers: API, Quarentena, Celery Workers, PostgreSQL, Redis, ChromaDB, Object Storage, Agente de IA |
+| 5 | [`05-c4-component-nivel3.mmd`](05-c4-component-nivel3.mmd) | `C4Component` | C4 Nível 3 — Componentes do Agente de IA (Modelo + Harness): System Prompt, Memória, Ferramentas, Contexto, Subagents, Skill, NER, Resolução, Chat Tradutor, Telemetria |
 
-    E->>API: POST /items (JSON + binario)
-    API->>API: Hash SHA-256 em streaming
-    API->>DB: 1o registro no custody_log
-    API-->>Z: HTTP 201 Created + recibo hash
+Notas técnicas herdadas da versão anterior deste README: `SHOW_LEGEND()` quebra o
+parser Mermaid C4 (removida dos 3 diagramas C4) e `Container_Bound` foi corrigido para
+`Container_Boundary`.
 
-    alt Chamada falhou
-        API--xZ: Erro - Zeev BLOQUEIA etapa de negocio
-    end
+## Arquitetura — diagramas novos (Fase 1)
 
-    rect rgb(240, 245, 255)
-        note over Q: Ante-sala - triagem leve
-        API->>Q: Item em quarentena
-        Q->>Q: ClamAV + magic bytes + schema + remetente
-        alt Aprovado
-            Q->>N: Segue para o nucleo
-        else Retido
-            Q->>DB: status retido + motivo no custody_log
-            note over Q: Revisao humana - nunca apagado
-            Q->>N: Liberado pelo analista (se aprovado)
-        end
-    end
+| # | Arquivo | Tipo Mermaid | Escopo |
+|---|---|---|---|
+| P1 | [`diagrams/P1-estados-item.mmd`](diagrams/P1-estados-item.mmd) / [`.md`](diagrams/P1-estados-item.md) | `stateDiagram-v2` | Estados do item — recebido a consultado, ciclo de retido/revisão/liberado, reprocessamento por falha de LLM, proibições explícitas de exclusão |
+| P2 | [`diagrams/P2-deployment-fisico.mmd`](diagrams/P2-deployment-fisico.mmd) / [`.md`](diagrams/P2-deployment-fisico.md) | `flowchart TB` (estável, equivalente a C4 Deployment) | Camada física: Ubuntu Server, Docker Compose, rede `seg_quarentena` isolada vs. rede `core`, volumes nomeados, portas publicadas (8000 API, 9000 MinIO), API como única ponte entre redes, nenhum segredo no compose |
+| P3 | [`diagrams/P3-schema-hudson.mmd`](diagrams/P3-schema-hudson.mmd) / [`.md`](diagrams/P3-schema-hudson.md) | `erDiagram` | Schema `hudson`: `items` (hash_sha256 UNIQUE, cota UNIQUE, FK self `duplicate_of_item_id`), `entities`, `relationships`, `custody_log` (event_type com CHECK de categorias), `declarations`, `estant_types` (enum das 6 Estantes) |
+| P4 | [`diagrams/P4-trava-assincrona-zeev-sla.mmd`](diagrams/P4-trava-assincrona-zeev-sla.mmd) / [`.md`](diagrams/P4-trava-assincrona-zeev-sla.md) | `sequenceDiagram` | Trava assíncrona do Zeev com SLA completo: tarefa aberta → arquivo chega por outro canal → HUDSON confirma por qualquer canal → Zeev fecha; alternativas de timeout de SLA (bloqueio/escalonamento) e confirmação duplicada (idempotência) |
+| P5 | [`diagrams/P5-consumo-biblioteca-soberana.mmd`](diagrams/P5-consumo-biblioteca-soberana.mmd) / [`.md`](diagrams/P5-consumo-biblioteca-soberana.md) | `sequenceDiagram` | Consumo: autenticação → RBAC → (a) Chat Tradutor (linguagem natural → filtros determinísticos → tsvector + ChromaDB) ou (b) `/authenticity` (recomputa SHA-256, compara, certidão ou alerta crítico a MYCROFT S4); toda consulta grava evento no custody_log antes de retornar |
+| P6 | [`diagrams/P6-excecao-llm-reprocessamento.mmd`](diagrams/P6-excecao-llm-reprocessamento.mmd) / [`.md`](diagrams/P6-excecao-llm-reprocessamento.md) | `flowchart TD` | Exceção da LLM: falha/inconclusão de NER → telemetria (llmops_telemetry) → item segue com extração parcial e flag_reprocess sem bloquear o pipeline → worker de reprocessamento tenta N vezes → escalonamento para revisão humana após o limite |
+| P7 | [`diagrams/P7-afericao-autenticidade-sob-demanda.mmd`](diagrams/P7-afericao-autenticidade-sob-demanda.mmd) / [`.md`](diagrams/P7-afericao-autenticidade-sob-demanda.md) | `sequenceDiagram` | Aferição de autenticidade sob demanda (advogado/due diligence) via `/authenticity`: recomputa SHA-256, compara, certidão com cadeia de custódia integral ou divergência crítica notificada a MYCROFT S4; mesma rota do item (b) de P5, aqui detalhada para o cenário de prova pericial — rota idempotente por hash |
+| P8 | [`diagrams/P8-varredura-integridade-acervo.mmd`](diagrams/P8-varredura-integridade-acervo.mmd) / [`.md`](diagrams/P8-varredura-integridade-acervo.md) | `flowchart TD` | Varredura de integridade periódica: Celery Beat → lote de itens → recomputa SHA-256 e compara com `items.hash_sha256` → item íntegro segue, divergente é bloqueado de **leitura** (nunca removido) + alerta + revisão humana + MYCROFT S4; verifica também a integridade estrutural (append-only) do `custody_log`; relatório final enviado a MYCROFT S4 |
 
-    rect rgb(243, 236, 255)
-        note over N,IA: Nucleo - tratamento pelo Agente IA
-        N->>N: Deduplicacao exata (is_duplicate_of)
-        N->>N: Roteamento pelas 6 Estantes
-        N->>N: OCR Tesseract camada dupla
-        N->>IA: Texto extraido para NER
-        IA->>DB: Consulta catalogo de entidades
-        IA->>DB: NER - PF, PJ, valores, datas, WBS
-        IA->>DB: Resolucao de entidades (criar no ou merge)
-        IA->>DB: Povoamento da tabela relationships
-        IA->>S4: Telemetria (tokens, latencia)
-    end
+Convenção: nenhum diagrama tem seta de exclusão de binário; a aferição de documento já
+existente aparece intencionalmente em dois diagramas (P5b e P7) e em um endpoint (S1 —
+idempotência por hash), cobrindo tanto o fluxo geral de consumo quanto o cenário de
+prova pericial dedicado.
 
-    N->>DB: Indexacao tsvector
-    N->>VDB: Embeddings vetoriais
-    N->>DB: Lock de Custodia - status processed + log imutavel
+## Pacote de especificações (Fase 2)
 
-    opt Auditoria transversal
-        S4-->>IA: prompt_registry travado por versao
-    end
-```
+| Item | Arquivo | Conteúdo |
+|---|---|---|
+| S1 | [`specs/S1-openapi.yaml`](specs/S1-openapi.yaml) | Contrato OpenAPI 3.1 — `POST /items` (6 emissores + upload humano), 5 endpoints de leitura, `/health`, idempotência por hash |
+| S2 | [`specs/S2-schema.sql`](specs/S2-schema.sql) | DDL PostgreSQL 15 — deriva de P3; `custody_log` particionado por ano e append-only (trigger bloqueia UPDATE/DELETE), `items` protegido contra DELETE |
+| S3 | [`docs/S3-maquina-estados.md`](docs/S3-maquina-estados.md) | Máquina de estados em tabela — deriva de P1; inclui transições proibidas explícitas |
+| S4 | [`docs/S4-rbac-lgpd-matrix.md`](docs/S4-rbac-lgpd-matrix.md) | Matriz RBAC (6 perfis × 6 operações, `delete` proibido a todos) + regras de tarjamento LGPD por campo em exportações |
+| S5 | [`docs/S5-nfrs-e-operacao.md`](docs/S5-nfrs-e-operacao.md) | NFRs mensuráveis (hash, busca, OCR, SLA), backup/restore, observabilidade, retenção de 10 anos |
+| S6 | [`docs/S6-testes.md`](docs/S6-testes.md) | Golden files forenses, fixtures de webhook por emissor, testes das vedações do agente, testes de integridade e de idempotência |
+| S7 | [`docs/S7-metadados-por-estante.md`](docs/S7-metadados-por-estante.md) | "MARC do HUDSON" — campos e indexabilidade (tsvector/ChromaDB) por uma das 6 Estantes |
+| S8 | [`docs/S8-cota-hudson.md`](docs/S8-cota-hudson.md) | Especificação da Cota HUDSON — `[ESTANTE]-[WBS]-[AAAA]-[hash8]`, geração determinística, resolução de colisão, expansível sem reclassificar |
 
-### 3. C4 Model — Containers (Nível 2)
+**Decisão de organização (registrada na Fase 0):** `docs/` recebe as especificações
+narrativas em Markdown (S3-S8), enquanto `specs/` recebe os 2 contratos
+máquina-legíveis (S1 `openapi.yaml`, S2 `schema.sql`) — critério: prosa vs. contrato
+formal.
 
-`04-c4-container-nivel2.mmd` — validado após a correção `Container_Bound` → `Container_Boundary` (ver nota técnica acima); renderiza sem erros.
+## Decisões aprováveis (Fase 3)
 
-```mermaid
-C4Container
-  title C4 Nivel 2 - Containers do HUDSON S1
+Recomendação + tradeoffs — nenhuma decisão foi tomada unilateralmente; todas aguardam
+aprovação humana antes de virar padrão de implementação.
 
-  Person(corporativo, "Consumidor Corporativo", "Advogado, gestor, auditor, due diligence")
-  Person(analista, "Analista de Quarentena", "Revisa itens retidos - nunca apaga")
-  Person(usu, "Usuario do Canal Humano", "Preenche formulario no Zeev")
+| Item | Arquivo | Recomendação (resumo) |
+|---|---|---|
+| D1 | [`docs/D1-llm-local-vs-api.md`](docs/D1-llm-local-vs-api.md) | LLM local (open-source, no próprio Ubuntu Server) para NER, Resolução de Entidades e Chat Tradutor — dado pericial nunca sai do servidor |
+| D2 | [`docs/D2-embeddings-ptbr.md`](docs/D2-embeddings-ptbr.md) | BGE-M3 local (alternativa: multilingual-e5-large); chunking por unidade natural de cada Estante (cláusula, e-mail, página), não por tamanho fixo |
+| D3 | [`docs/D3-thresholds-deterministicos.md`](docs/D3-thresholds-deterministicos.md) | Dedup semântico ≥0.95 flag / ≥0.85 revisão humana; merge automático de entidades só para PJ/CNPJ/valores/datas/WBS — **nunca** para PF, sempre revisão humana |
+| D4 | [`docs/D4-seguranca-cibernetica.md`](docs/D4-seguranca-cibernetica.md) | Egress zero, segredos via Docker secrets (nunca `.env` versionado), rate limiting por emissor, hardening do Ubuntu (sshd, ufw, fail2ban) |
+| D5 | [`docs/D5-roadmap-fases-codificacao.md`](docs/D5-roadmap-fases-codificacao.md) | 4 fases de código (MVP → processamento → IA/governança → aferição/RBAC/LGPD), com ordem de commit sugerida para a Fase 1 |
 
-  System_Ext(zeev, "Zeev BPMS", "Orquestra e trava etapas de negocio")
-  System_Ext(sistemas, "SIENGE, AutoDoc, Conciliacao, CV, OT", "Emissores por webhook")
-  System_Ext(m365, "Microsoft 365", "SharePoint, Outlook e Teams")
-  System_Ext(legados, "Legados", "SMB/NFS e caixas pst/msg")
-  System_Ext(watson, "WATSON S2", "Auditoria do acervo")
-  System_Ext(holmes, "HOLMES S3", "Sindicancia - leitura")
-  System_Ext(mycroft, "MYCROFT S4", "Governanca de IA")
-  System_Ext(llm, "LLM Provider", "Modelo de linguagem - motor NER e tradutor")
+## Roadmap de codificação (resumo de D5)
 
-  Container_Boundary(hb, "HUDSON S1", "Ubuntu Server - Docker Compose"){
+| Fase de código | Escopo | Esforço relativo |
+|---|---|---|
+| 1 — MVP | Webhook, hash em streaming, quarentena, `custody_log`, Object Storage | Médio |
+| 2 | Dedup exata, 6 Estantes, OCR, indexação, Cota HUDSON | Alto |
+| 3 | NER, Resolução de Entidades, Chat Tradutor, telemetria MYCROFT S4 | Alto |
+| 4 | `/authenticity`, RBAC, tarjamento LGPD, varredura de integridade | Médio |
 
-    Container(api, "API REST", "FastAPI", "POST /items - endpoints de leitura - contratos deterministicos")
+Detalhes e ordem de commit sugerida em [`docs/D5-roadmap-fases-codificacao.md`](docs/D5-roadmap-fases-codificacao.md).
 
-    Container(quar, "Quarentena - Ante-sala", "ClamAV + python-magic + Pydantic", "Triagem leve e adaptador de formato dos 6 emissores")
+## Convenções do repositório
 
-    Container(agents, "Celery Workers", "Python", "OCR transcricao varredura passiva e indexacao")
+- Cada diagrama novo (P1-P8) é 1 arquivo `.mmd` + 1 arquivo `.md` (mesmo conteúdo, com
+  fence ```` ```mermaid ````), indexado neste README por uma linha.
+- Rótulos Mermaid sem acentuação (compatibilidade ampla de renderizador), sintaxe
+  validada contra mermaid.live; nenhum diagrama tem seta de exclusão de binário.
+- Cada especificação (S1-S8) e cada decisão (D1-D5) é 1 arquivo próprio, nomeado
+  `S<n>-slug.ext` / `D<n>-slug.md`.
+- `custody_log` é append-only em todas as camadas: modelagem (P3), schema com trigger
+  (S2) e regra de RBAC (S4 — `delete` proibido a todos os perfis).
+- Toda consulta de qualquer consumidor gera 1 registro em `custody_log` antes de
+  retornar — modelado nos 4 diagramas de consumo/aferição (P5, P7, P8) e no
+  endpoint correspondente (S1).
 
-    ContainerDb(pg, "PostgreSQL hudson", "PostgreSQL 15", "Entidades relationships tsvector e custody_log append-only")
+## Status do pacote de engenharia
 
-    ContainerDb(redis, "Redis", "Redis", "Filas Celery e amortecimento de picos")
+| Fase | Conteúdo | Status |
+|---|---|---|
+| 0 | Preparação — estrutura de pastas, mapeamento dos 5 diagramas existentes | ✅ concluída |
+| 1 | 8 diagramas novos (`diagrams/`) — estados, deployment, ER, sequências, exceção LLM, integridade | ✅ concluída |
+| 2 | Especificações de engenharia (`docs/` + `specs/`) — S1 a S8 | ✅ concluída |
+| 3 | Decisões aprováveis (D1-D5) — recomendação + tradeoffs, sem decidir sozinho | ✅ concluída |
+| 4 | Fechamento — README.md final e `docs/INDEX.md` | ✅ concluída |
 
-    ContainerDb(vdb, "ChromaDB", "ChromaDB", "Embeddings e busca vetorial")
-
-    ContainerDb(storage, "Object Storage", "Imutavel", "Binarios originais - nunca sobrescritos - storage_path")
-
-    Container(agent, "Agente de IA", "LLM + Harness", "NER resolucao de entidades e Chat Tradutor - vedacoes no System Prompt")
-  }
-
-  Rel(sistemas, api, "Envia JSON + binario", "Webhook POST /items")
-  Rel(zeev, api, "Arquivo + formulario declarativo", "POST /items - espera HTTP 201")
-  Rel(api, zeev, "Recibo SHA-256 ou erro de trava", "HTTP 201 / timeout")
-  Rel(m365, api, "Documentos e-mails mensagens", "Graph API conector unico")
-  Rel(legados, agents, "Varredura agendada read-only", "SMB/NFS pst/msg")
-  Rel(usu, zeev, "Preenche formulario declarativo", "4 campos minimos")
-
-  Rel(api, quar, "Item recebido para triagem", "Interno")
-  Rel(quar, agents, "Aprovado entra no nucleo", "Fila Redis")
-  Rel(quar, pg, "Status retido + motivo", "custody_log")
-  Rel(analista, quar, "Revisa e libera itens retidos", "Fila de revisao")
-
-  Rel(agents, agent, "Texto extraido para NER e resolucao", "Interno")
-  Rel(agent, llm, "Chamadas de inferencia", "API - telemetria obrigatoria")
-  Rel(agent, pg, "Catalogo de entidades e relationships", "Leitura e escrita controlada")
-  Rel(agents, storage, "Grava original una vez", "Object Storage imutavel")
-  Rel(agents, pg, "Indexacao tsvector e lock de custodia", "custody_log")
-  Rel(agents, vdb, "Indexacao vetorial", "Embeddings")
-
-  Rel(corporativo, api, "Consulta via Chat Tradutor e endpoints", "/search /authenticity /custody-log /timeline")
-  Rel(holmes, api, "Consome base para sindicancia", "Leitura auditada")
-  Rel(watson, api, "s1_audit_findings", "Reprocessamento de indices")
-  Rel(api, mycroft, "Telemetria de LLM", "llmops_telemetry")
-  Rel(mycroft, agent, "System Prompt travado por versao", "prompt_registry")
-```
-
-### 4. C4 Model — Componentes do Agente de IA (Nível 3)
-
-`05-c4-component-nivel3.mmd` — validado após a correção `Container_Bound` → `Container_Boundary`; renderiza sem erros.
-
-```mermaid
-C4Component
-  title C4 Nivel 3 - Agente de IA do HUDSON (Agente = Modelo + Harness)
-
-  Person(analista, "Analista", "Operador humano - aprova e revisa")
-  System_Ext(mycroft, "MYCROFT S4", "Governanca de IA")
-  System_Ext(llm, "LLM Provider", "Motor linguistico e interpretativo")
-
-  Container_Boundary(hudson, "HUDSON S1", "Sistema custodio"){
-
-    Component(sp, "System Prompt", "Harness", "Trava de isencao absoluta - cego para culpa e merito - identidade do agente - versao travada no prompt_registry")
-
-    Component(memory, "Memoria", "Harness", "PostgreSQL hudson + Object Storage imutavel - contexto do acervo")
-
-    Component(tools, "Ferramentas", "Harness", "Calculador SHA-256 streaming - Tesseract camada dupla - parsers das 6 Estantes - endpoints REST deterministicos")
-
-    Component(context, "Contexto", "Harness", "Base unica e agnostica de hipotese - schema fixo - novas hipoteses geram consultas nunca tabelas")
-
-    Component(subagents, "Subagents", "Harness", "Celery Workers - OCR transcricao varredura passiva indexacao")
-
-    Component(skill, "Skill", "Harness", "Capacidades procedimentais - deduplicacao roteamento resolucao de entidades indexacao tsvector + embeddings")
-
-    Component(nersvc, "Servico NER", "Funcao 1", "Identifica PF PJ/CNPJ valores datas clausulas e WBS em texto juridico corporativo e engenharia")
-
-    Component(resol, "Resolucao de Entidades", "Funcao 2", "Compara com catalogo - cria no ou merge - alimenta relationships - usa formulario declarativo como pista")
-
-    Component(chat, "Chat Tradutor", "Funcao 3", "Linguagem natural em filtros deterministicos tsvector + ChromaDB - retorna certidao SHA-256 e custodia")
-
-    Component(telem, "Telemetria", "Governanca", "Registro de tokens e latencia de toda chamada LLM")
-  }
-
-  Rel(llm, nersvc, "Executa reconhecimento de entidades", "Motor do Modelo")
-  Rel(llm, resol, "Executa comparacao e proposta de merge", "Motor do Modelo")
-  Rel(llm, chat, "Traduz pergunta em filtros", "Motor do Modelo")
-
-  Rel(sp, nersvc, "Restringe e direciona", "Vedaes absolutas")
-  Rel(sp, resol, "Restringe e direciona", "Pesca de rede - zero exclusao")
-  Rel(sp, chat, "Restringe e direciona", "Respostas factuais sem juizo")
-
-  Rel(nersvc, memory, "Persiste entidades extraidas", "PostgreSQL")
-  Rel(resol, memory, "Consulta catalogo e grava merge", "relationships")
-  Rel(chat, memory, "Consulta acervo", "tsvector")
-  Rel(chat, tools, "Consulta autenticidade e custodia", "endpoints REST")
-  Rel(subagents, tools, "Executa OCR e parsing", "Tesseract + parsers")
-  Rel(subagents, skill, "Roteia e indexa", "Skills deterministicas")
-
-  Rel(telem, mycroft, "Envia tokens e latencia", "llmops_telemetry")
-  Rel(mycroft, sp, "Trava versao do prompt", "prompt_registry - muda so com aprovacao humana")
-  Rel(analista, resol, "Supervisiona merges criticos", "Human-in-the-loop")
-```
-
-### 5. Flowchart — Arquitetura Completa (alternativa estável ao C4)
-
-`03-flowchart-completo.mmd` — validado (renderiza sem erros).
-
-```mermaid
-flowchart TD
-    subgraph FONTES["Fontes - geram arquivos e informacao"]
-        ZEEV["Zeev BPMS<br/>+ formulario declarativo"]
-        SIENGE["SIENGE<br/>NFs e medicoes"]
-        M365["SharePoint, Outlook, Teams"]
-        OUTROS["AutoDoc, Conciliacao, CV, OT, legados"]
-    end
-
-    subgraph API["API REST POST /items"]
-        A1{"Chamada OK?"}
-    end
-
-    subgraph HUDSON["HUDSON - Recepcao"]
-        H1["Hash SHA-256 em streaming"]
-        H2["1o registro no custody_log"]
-        H3["Formulario declarativo<br/>etiqueta - nunca filtro"]
-    end
-
-    subgraph QUAREN["Quarentena - ante-sala"]
-        Q1["ClamAV, magic bytes,<br/>schema, remetente"]
-        Q2{"Aprovado?"}
-        Q3["Status RETIDO<br/>revisao humana"]
-        Q4{"Liberado pelo analista?"}
-    end
-
-    subgraph NUCLEO["Nucleo - Agente IA"]
-        N1{"Duplicata?"}
-        N2["Marca is_duplicate_of<br/>origem preservada"]
-        N3["Roteamento 6 Estantes"]
-        N4["OCR Tesseract"]
-        N5["NER pela LLM"]
-        N6["Resolucao de entidades<br/>tabela relationships"]
-        N7["Indexacao tsvector + ChromaDB"]
-        N8{"Processamento OK?"}
-        N9["Flag de reprocessamento<br/>telemetria S4"]
-    end
-
-    subgraph LOCK["Lock de Custodia"]
-        L1["status processed<br/>log imutavel"]
-    end
-
-    subgraph CONSUMO["Biblioteca Soberana"]
-        C1["Chat Tradutor + endpoints<br/>search, authenticity, custody-log,<br/>timeline, communication-map"]
-        C2{"Consulta auditada?"}
-        C3["Registro no custody_log"]
-        C4["WATSON S2 - HOLMES S3 -<br/>MYCROFT S4 - corporativos"]
-    end
-
-    ZEEV --> A1
-    SIENGE --> A1
-    M365 --> A1
-    OUTROS --> A1
-
-    A1 -- "NAO" --> ZBLOCK["Zeev BLOQUEIA a etapa de negocio"]
-    A1 -- "SIM" --> H1
-    H1 --> H2 --> H3 --> Q1 --> Q2
-
-    Q2 -- "NAO" --> Q3 --> Q4
-    Q4 -- "NAO" --> Q3
-    Q4 -- "SIM" --> N1
-    Q2 -- "SIM" --> N1
-
-    N1 -- "SIM" --> N2
-    N1 -- "NAO" --> N3
-    N3 --> N4 --> N5 --> N6 --> N7 --> N8
-
-    N8 -- "NAO" --> N9 --> N3
-    N8 -- "SIM" --> L1 --> C1
-
-    C1 --> C2
-    C2 -- "SIM - toda consulta" --> C3 --> C4
-    C2 -- "NAO - acesso negado" --> X1["RBAC bloqueia<br/>e registra tentativa"]
-```
-
-## Princípios evidenciados no desenho
-
-- **Cadeia de custódia desde a entrada**: hash SHA-256 em streaming e primeiro registro no `custody_log` acontecem antes de qualquer outra etapa.
-- **Zeev como trava de negócio**: se a chamada à API HUDSON falhar, o Zeev bloqueia a etapa de negócio — não há caminho de contorno.
-- **Quarentena nunca apaga**: itens retidos ficam para revisão humana; a liberação é decisão do analista, não automática.
-- **Deduplicação preserva origem**: duplicatas exatas são marcadas (`is_duplicate_of`), nunca descartadas.
-- **Toda consulta é auditada**: leitura pela Biblioteca Soberana passa por RBAC e gera registro no `custody_log`, com bloqueio e registro de tentativa em caso de acesso negado.
+Índice completo por arquivo, com status individual, em [`docs/INDEX.md`](docs/INDEX.md).
