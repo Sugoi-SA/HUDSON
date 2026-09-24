@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.db import get_session
 from app.repositories.items import get_item_by_cota
 from app.schemas.items import ItemOut
+from app.security import require_api_key
 from app.services.custody import log_event
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 ACTOR = "api_v0"
 

@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.db import get_session
 from app.repositories.items import search_items
 from app.schemas.items import SearchResponse, SearchResultItem
+from app.security import require_api_key
 from app.services.custody import log_event
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 ACTOR = "api_v0"
 

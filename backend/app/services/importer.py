@@ -1,9 +1,10 @@
 import os
 import shutil
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Item
@@ -23,6 +24,10 @@ STATUS_INDEXADO = "indexado"
 STATUS_FALHA = "falha_processamento"
 
 
+class IntegrityCheckError(Exception):
+    """Levantado quando a copia em custodia nao bate com o hash de origem."""
+
+
 @dataclass
 class ImportSummary:
     total: int = 0
@@ -34,6 +39,10 @@ class ImportSummary:
     erros: List[str] = field(default_factory=list)
 
 
+def _find_existing(session: Session, hash_hex: str) -> Optional[Item]:
+    return session.execute(select(Item).where(Item.hash_sha256 == hash_hex)).scalar_one_or_none()
+
+
 def _copy_to_storage(source_path: str, storage_root: str, estante: str, hash_hex: str) -> str:
     ext = os.path.splitext(source_path)[1].lower()
     dest_dir = os.path.join(storage_root, estante, hash_hex[:2])
@@ -41,13 +50,16 @@ def _copy_to_storage(source_path: str, storage_root: str, estante: str, hash_hex
     dest_path = os.path.join(dest_dir, f"{hash_hex}{ext}")
     if not os.path.exists(dest_path):
         shutil.copy2(source_path, dest_path)
+    if sha256_file(dest_path) != hash_hex:
+        os.remove(dest_path)
+        raise IntegrityCheckError(f"hash da copia em {dest_path} nao confere com a origem")
     return dest_path
 
 
 def _import_file(session: Session, file_path: str, storage_root: str, obra_wbs: str, summary: ImportSummary) -> None:
     hash_hex = sha256_file(file_path)
 
-    existing = session.execute(select(Item).where(Item.hash_sha256 == hash_hex)).scalar_one_or_none()
+    existing = _find_existing(session, hash_hex)
     if existing is not None:
         log_event(session, existing.id, "deduplicacao", ACTOR, hash_hex, reason=f"origem_repetida:{file_path}")
         summary.duplicados += 1
@@ -58,7 +70,19 @@ def _import_file(session: Session, file_path: str, storage_root: str, obra_wbs: 
 
     item = Item(hash_sha256=hash_hex, storage_path="", status=STATUS_RECEBIDO, estante=None, obra_wbs=obra_wbs)
     session.add(item)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        existing = _find_existing(session, hash_hex)
+        if existing is None:
+            raise
+        log_event(
+            session, existing.id, "deduplicacao", ACTOR, hash_hex, reason=f"origem_repetida_concorrente:{file_path}"
+        )
+        summary.duplicados += 1
+        return
+
     log_event(session, item.id, "recebimento", ACTOR, hash_hex, reason=f"origem:{file_path}")
 
     if estante is None:
@@ -72,7 +96,13 @@ def _import_file(session: Session, file_path: str, storage_root: str, obra_wbs: 
     item.status = STATUS_ROTEADO
     log_event(session, item.id, "roteamento", ACTOR, hash_hex, reason=f"estante:{estante}")
 
-    item.storage_path = _copy_to_storage(file_path, storage_root, estante, hash_hex)
+    try:
+        item.storage_path = _copy_to_storage(file_path, storage_root, estante, hash_hex)
+    except IntegrityCheckError as exc:
+        item.status = STATUS_FALHA
+        log_event(session, item.id, "alerta_integridade", ACTOR, hash_hex, reason=f"copia_corrompida:{exc}")
+        summary.erros.append(f"{file_path}: falha de integridade na copia em custodia - {exc}")
+        return
 
     item.status = STATUS_PROCESSANDO
     text = None
