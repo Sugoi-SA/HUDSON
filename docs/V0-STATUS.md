@@ -37,7 +37,8 @@ crescimento de escopo futuro não exija reescrever partes já prontas.
 | [`830ed44`](../../commit/830ed44) | Reorganização do backend em camadas: `routers/` (HTTP), `services/` (regra de negócio), `schemas/` (contrato Pydantic da API), `repositories/` (acesso a dado) | Mesmo comportamento confirmado byte-a-byte nos 4 endpoints e no import CLI, antes e depois da reorganização |
 | [`09b49dd`](../../commit/09b49dd) | Três bloqueadores do v0: (1) autenticação por API key em `/search` e `/items/{cota}`; (2) corrida de concorrência na deduplicação por hash tratada como duplicata em vez de erro; (3) verificação de integridade SHA-256 logo após a cópia em custódia, com alerta e status `falha_processamento` em caso de divergência | Testes reais executados: 6 cenários de autenticação (401/200 corretos); 2 processos de import simultâneos contra o mesmo arquivo novo produzindo exatamente 1 item novo + 1 duplicata sem erros; destino corrompido manualmente detectado e colocado em quarentena de ponta a ponta pelo pipeline real |
 | [`311f82a`](../../commit/311f82a) | Suíte `pytest` automatizada (22 testes) cobrindo hashing, roteamento, geração de Cota, dedup, indexação, verificação de integridade e o teste de concorrência real (threads simultâneas) exigido em `docs/S6-testes.md` — roda contra o PostgreSQL de verdade, não mock, usando transação com savepoint para não poluir o acervo Zero Exclusão (exceto o teste de concorrência, que precisa de duas transações reais e por isso fica com uma linha residual por execução, tagueada `obra_wbs='PYTEST_CONC'`) | `pytest` executado no servidor: 22 passed em 1.35s |
-| `(próximo)` | Unidade systemd (`backend/deploy/hudson-api.service`) substituindo o processo `nohup` manual: `Restart=on-failure`, habilitado no boot | Processo morto com `kill -9` e reiniciado sozinho pelo systemd em ~5s, `/health` voltando a responder sem intervenção manual |
+| [`24db046`](../../commit/24db046) | Unidade systemd (`backend/deploy/hudson-api.service`) substituindo o processo `nohup` manual: `Restart=on-failure`, habilitado no boot | Processo morto com `kill -9` e reiniciado sozinho pelo systemd em ~5s, `/health` voltando a responder sem intervenção manual |
+| `(próximo)` | Script de backup (`backend/deploy/backup.sh`) — `pg_dump` do banco `hudson` (formato custom) + `tar.gz` do `hudson_storage`, credenciais lidas do `.env` em runtime (nunca hardcoded), retenção de 14 dias, agendado via `crontab` do usuário `hudson` (03h diário) | Rodado manualmente uma vez com sucesso; `pg_restore --list` confirmou os 89 objetos do dump (incluindo os triggers de Zero Exclusão) sem erro; `tar -tzf` confirmou a árvore de custódia completa no backup do storage |
 
 ## Onde estamos agora
 
@@ -50,14 +51,24 @@ crescimento de escopo futuro não exija reescrever partes já prontas.
 | Integridade pós-cópia | Implementada e validada (detecção + quarentena) |
 | Testes automatizados formais | Implementados — 22 testes `pytest`, rodando contra Postgres real |
 | Processo da API supervisionado (systemd) | Implementado e validado — restart automático confirmado com `kill -9` |
-| Backup (Postgres + `hudson_storage`) | **Pendente** |
+| Backup (Postgres + `hudson_storage`) | Implementado e agendado (cron diário); validado por integridade estrutural do dump, não por restore completo (ver lacuna abaixo) |
 | SO/runtime (CentOS 7 e Python 3.8, ambos EOL) | **Pendente decisão** de migração |
 | Frontend | Fora de escopo desta rodada (Fase 1.1/1.2) |
 | RBAC completo, `POST /items` oficial, `/authenticity`, filas | Fora de escopo desta rodada (Fase 1.1/1.2) |
+
+## Lacuna conhecida: teste de restore completo
+
+O backup foi validado apenas por integridade estrutural (`pg_restore --list`, `tar -tzf`),
+não por um restore completo em um banco separado. Um restore de verdade exige um banco de
+teste dedicado (`createdb`), e o usuário `hudson` não tem privilégio `CREATEDB` — só o
+usuário `postgres`/root tem. Antes de considerar o backup totalmente validado (conforme
+NFR-6 de `docs/S5-nfrs-e-operacao.md`, que pede restauração completa mensal), falta:
+conceder `CREATEDB` ao usuário `hudson` (ação de root, uma única vez) ou pedir para alguém
+com acesso root rodar o restore manualmente uma vez por mês.
 
 ## Próximos passos (em ordem sugerida)
 
 1. ~~Testes automatizados mínimos~~ — concluído
 2. ~~Unidade systemd para a API~~ — concluído
-3. Backup do PostgreSQL e do `hudson_storage`
+3. ~~Backup do PostgreSQL e do `hudson_storage`~~ — concluído (restore completo pendente, ver acima)
 4. Decisão sobre migração de SO/Python (ambos oficialmente end-of-life)
