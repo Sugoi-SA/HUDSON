@@ -1,6 +1,7 @@
 import os
 import shutil
 from dataclasses import dataclass, field
+from typing import List
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -30,7 +31,7 @@ class ImportSummary:
     indexados: int = 0
     sem_texto: int = 0
     sem_estante: int = 0
-    erros: list[str] = field(default_factory=list)
+    erros: List[str] = field(default_factory=list)
 
 
 def _copy_to_storage(source_path: str, storage_root: str, estante: str, hash_hex: str) -> str:

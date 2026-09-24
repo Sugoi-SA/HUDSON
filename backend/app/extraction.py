@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import pytesseract
 from PIL import Image
@@ -41,7 +42,7 @@ def _extract_plain_text(path: str) -> str:
         return f.read()
 
 
-def extract_text(path: str, estante: str | None) -> str | None:
+def extract_text(path: str, estante: Optional[str]) -> Optional[str]:
     ext = os.path.splitext(path)[1].lower()
     try:
         if ext == ".pdf":

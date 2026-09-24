@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
@@ -25,15 +26,15 @@ class Item(Base):
     hash_sha256: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     storage_path: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)
-    estante: Mapped[str | None] = mapped_column(ForeignKey("hudson.estant_types.codigo"), nullable=True)
-    cota: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
-    obra_wbs: Mapped[str | None] = mapped_column(String, nullable=True)
-    duplicate_of_item_id: Mapped[uuid.UUID | None] = mapped_column(
+    estante: Mapped[Optional[str]] = mapped_column(ForeignKey("hudson.estant_types.codigo"), nullable=True)
+    cota: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
+    obra_wbs: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    duplicate_of_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("hudson.items.id"), nullable=True
     )
     received_at: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    processed_at: Mapped[object | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    search_vector: Mapped[object | None] = mapped_column(TSVECTOR, nullable=True)
+    processed_at: Mapped[Optional[object]] = mapped_column(DateTime(timezone=True), nullable=True)
+    search_vector: Mapped[Optional[object]] = mapped_column(TSVECTOR, nullable=True)
 
 
 class CustodyLog(Base):
@@ -48,9 +49,9 @@ class CustodyLog(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("hudson.items.id"), nullable=True)
+    item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("hudson.items.id"), nullable=True)
     event_type: Mapped[str] = mapped_column(String, nullable=False)
     actor: Mapped[str] = mapped_column(String, nullable=False)
-    reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    reason: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     timestamp: Mapped[object] = mapped_column(DateTime(timezone=True), server_default=func.now(), primary_key=True)
     payload_hash: Mapped[str] = mapped_column(String, nullable=False)

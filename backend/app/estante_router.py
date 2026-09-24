@@ -1,6 +1,7 @@
 import os
+from typing import Dict, Optional
 
-EXTENSION_MAP: dict[str, str] = {
+EXTENSION_MAP: Dict[str, str] = {
     ".pdf": "document_text",
     ".doc": "document_text",
     ".docx": "document_text",
@@ -35,6 +36,6 @@ EXTENSION_MAP: dict[str, str] = {
 }
 
 
-def route(filename: str) -> str | None:
+def route(filename: str) -> Optional[str]:
     ext = os.path.splitext(filename)[1].lower()
     return EXTENSION_MAP.get(ext)

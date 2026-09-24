@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -7,11 +8,11 @@ from app.models import CustodyLog
 
 def log_event(
     session: Session,
-    item_id: uuid.UUID | None,
+    item_id: Optional[uuid.UUID],
     event_type: str,
     actor: str,
     payload_hash: str,
-    reason: str | None = None,
+    reason: Optional[str] = None,
 ) -> None:
     session.add(
         CustodyLog(
