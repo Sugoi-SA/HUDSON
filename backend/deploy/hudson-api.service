@@ -1,0 +1,16 @@
+[Unit]
+Description=HUDSON S1 API (uvicorn)
+After=network.target postgresql-15.service
+Wants=postgresql-15.service
+
+[Service]
+Type=simple
+User=hudson
+Group=hudson
+WorkingDirectory=/home/hudson/HUDSON/backend
+ExecStart=/home/hudson/HUDSON/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
