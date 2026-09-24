@@ -2,7 +2,7 @@ import argparse
 
 from app.config import STORAGE_ROOT
 from app.db import get_session
-from app.importer import import_source
+from app.services.importer import import_source
 
 
 def main():

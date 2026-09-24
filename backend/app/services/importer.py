@@ -6,12 +6,12 @@ from typing import List
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.cota import generate_cota
-from app.custody import log_event
-from app.estante_router import route
-from app.extraction import extract_text
-from app.hashing import sha256_file
 from app.models import Item
+from app.services.cota import generate_cota
+from app.services.custody import log_event
+from app.services.estante_router import route
+from app.services.extraction import extract_text
+from app.services.hashing import sha256_file
 
 ACTOR = "importer_v0"
 
