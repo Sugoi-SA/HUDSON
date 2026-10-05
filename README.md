@@ -8,6 +8,19 @@ O repositório está organizado em dois módulos principais por temas:
 
 Índice completo e detalhado de cada módulo em [`docs/INDEX.md`](docs/INDEX.md).
 
+---
+
+## 🚀 Status de Homologação Oficial: HUDSON Core na Oracle Cloud (OCI) & DAI
+
+O ecossistema **HUDSON Core (HDW & HDC)** e a integração com a **DAI Smart Reception** foram **100% HOMOLOGADOS** pela banca técnica multidisciplinar do Dr. Tylor Code e auditados pelo Meta_GPT:
+* 📢 **[Consulte a Ata Oficial de Homologação e Broadcast](./docs/hdc/HDC-ATA-HOMOLOGACAO-E-SUBIDA-OCI.md)**
+* 🌐 **[Guia de Deploy na Oracle Cloud (OCI)](./docs/hdc/HDC-ESPECIFICACAO-TECNICA-E-DEPLOY-OCI.md)**
+* 📡 **[Especificação de Integração DAI × HUDSON v1.2.0](./docs/hdc/DOCUMENTO_INTEGRACAO_DAI_HUDSON.md)**
+* 🧪 **Suíte de Testes Automatizados E2E:** 23/23 testes aprovados (15 no HDC + 8 na DAI).
+* 🛡️ **Segurança Probatória:** Barreira SoD (`maker != checker`), Idempotência no Redis e Harness com RapidFuzz.
+
+---
+
 ## Estrutura Temática do Repositório
 
 ```
