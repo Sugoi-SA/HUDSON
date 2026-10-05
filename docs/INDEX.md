@@ -38,6 +38,7 @@ arquitetura resumida estão no [`README.md`](../README.md) da raiz.
 | S6 | [`docs/S6-testes.md`](S6-testes.md) | ✅ concluído |
 | S7 | [`docs/S7-metadados-por-estante.md`](S7-metadados-por-estante.md) | ✅ concluído |
 | S8 | [`docs/S8-cota-hudson.md`](S8-cota-hudson.md) | ✅ concluído |
+| HDW | [`docs/HDW-WORKFLOW-E-ESPECIFICACOES-SUGOI.md`](HDW-WORKFLOW-E-ESPECIFICACOES-SUGOI.md) | ✅ concluído (especificação & workflow Sugoi) |
 
 **Decisão de organização (Fase 0):** `docs/` recebe especificações narrativas em
 Markdown (S3-S8); `specs/` recebe contratos máquina-legíveis (S1 `openapi.yaml`, S2
