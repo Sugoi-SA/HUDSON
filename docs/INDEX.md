@@ -34,5 +34,6 @@ Este repositório abriga os dois pilares integrados do ecossistema HUDSON, organ
 | :--- | :--- | :--- | :--- |
 | **HDC-ARCH**| [`docs/hdc/HDC-ARQUITETURA-E-GOVERNANCA.md`](hdc/HDC-ARQUITETURA-E-GOVERNANCA.md) | Arquitetura, governança multi-tenant e homeostase do HDC | ✅ Concluído |
 | **DAI-INT** | [`docs/hdc/DOCUMENTO_INTEGRACAO_DAI_HUDSON.md`](hdc/DOCUMENTO_INTEGRACAO_DAI_HUDSON.md) | Especificação oficial de integração DAI × HUDSON v1.2.0 | ✅ Concluído |
+| **HOMOLOG** | [`docs/hdc/HDC-RELATORIO-HOMOLOGACAO-E-CIRCUITO-PAM.md`](hdc/HDC-RELATORIO-HOMOLOGACAO-E-CIRCUITO-PAM.md) | Relatório Oficial de Homologação E2E (PAM, DAI, HDC, HDW) e Testes de SoD | ✅ Concluído |
 | **HDC-CODE**| [`hdc/README.md`](../hdc/README.md) | Manual de execução do HDC com Docker Compose e FastAPI :9000 | ✅ Concluído |
-| **TESTS** | [`hdc/tests/test_hdc_api.py`](../hdc/tests/test_hdc_api.py) | Suíte de testes automatizados das rotas do HDC | ✅ Concluído |
+| **TESTS**   | [`hdc/tests/`](../hdc/tests/) | Suíte de testes automatizados (API, Harness Anti-Alucinação e Circuito E2E) | ✅ Concluído |
