@@ -39,6 +39,7 @@ arquitetura resumida estão no [`README.md`](../README.md) da raiz.
 | S7 | [`docs/S7-metadados-por-estante.md`](S7-metadados-por-estante.md) | ✅ concluído |
 | S8 | [`docs/S8-cota-hudson.md`](S8-cota-hudson.md) | ✅ concluído |
 | HDW | [`docs/HDW-WORKFLOW-E-ESPECIFICACOES-SUGOI.md`](HDW-WORKFLOW-E-ESPECIFICACOES-SUGOI.md) | ✅ concluído (especificação & workflow Sugoi) |
+| KT-TI | [`docs/KT-GUIA-INSTALACAO-HDW-LINUX.md`](KT-GUIA-INSTALACAO-HDW-LINUX.md) | ✅ concluído (guia didático de instalação Linux para TI) |
 
 **Decisão de organização (Fase 0):** `docs/` recebe especificações narrativas em
 Markdown (S3-S8); `specs/` recebe contratos máquina-legíveis (S1 `openapi.yaml`, S2
