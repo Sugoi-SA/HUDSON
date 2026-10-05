@@ -1,37 +1,25 @@
-# Sugoi-SA/HUDSON — Sistema HUDSON (S1)
+# Sugoi-SA/HUDSON — Ecossistema HUDSON (HDW & HDC)
 
-Biblioteca Soberana da SUGOI S.A.: custodiante forense + data warehouse corporativo.
-Hash SHA-256 em streaming na recepção, custódia append-only (`custody_log`), zero
-exclusão de binário, base agnóstica de hipótese e consulta que jamais bloqueia
-ingestão — a trava é sempre de ingestão, nunca de leitura.
+Biblioteca Soberana da SUGOI S.A. + Orquestrador Central da Daisugi Tecnologias.
 
-Todo item do acervo é:
+O repositório está organizado em dois módulos principais por temas:
+* 🏛️ **HUDSON DW (`backend/`):** Data Warehouse Soberano da SUGOI S.A. (Biblioteca Forense Digital Local na porta `8000`). Custódia append-only (`custody_log`), zero exclusão de binários e cota determinística MARC.
+* 🌐 **HUDSON DC (`hdc/`):** Data Center & Event Hub Multi-Tenant da Daisugi Tecnologias (Orquestrador na porta `9000`). Integração de baixa latência com a DAI (Smart Reception), esteira KAN-SA, Dr. SaulLM e mensageria distribuída.
 
-- **Endereçável** — Cota HUDSON única e determinística ([S8](docs/S8-cota-hudson.md)).
-- **Verificável** — hash SHA-256 recomputável sob demanda + cadeia de custódia
-  completa ([P5](diagrams/P5-consumo-biblioteca-soberana.md),
-  [P7](diagrams/P7-afericao-autenticidade-sob-demanda.md),
-  [P8](diagrams/P8-varredura-integridade-acervo.md)).
-- **Relacional** — entidades e vínculos prontos para cruzamento por terceiros
-  (`entities`/`relationships`), no espírito da Library of Congress / LCC / MARC: um
-  catálogo estruturado, reutilizável por quem consome.
+Índice completo e detalhado de cada módulo em [`docs/INDEX.md`](docs/INDEX.md).
 
-Este README é o índice mestre do repositório. Índice completo com status de cada
-documento em [`docs/INDEX.md`](docs/INDEX.md).
-
-## Estrutura do repositório
+## Estrutura Temática do Repositório
 
 ```
 .
-├── README.md                  # este arquivo — índice mestre
-├── 01-c4-contexto.mmd          # 5 diagramas de arquitetura já existentes (não tocados)
-├── 02-sequencia-ingestao.mmd
-├── 03-flowchart-completo.mmd
-├── 04-c4-container-nivel2.mmd
-├── 05-c4-component-nivel3.mmd
-├── docs/                       # especificações narrativas (S3-S8), decisões (D1-D5) e INDEX.md
-├── diagrams/                   # os 8 diagramas novos (P1-P8), cada um em .mmd + .md
-└── specs/                      # contratos formais/máquina-legíveis (openapi.yaml, schema.sql)
+├── README.md                  # Este arquivo — visão macro do ecossistema
+├── backend/                   # 🏛️ TEMA 1: Código-fonte do HUDSON DW (:8000)
+├── hdc/                       # 🌐 TEMA 2: Código-fonte do HUDSON DC (:9000)
+├── docs/                      # Documentação técnica segregada por temas
+│    ├── hdw/                  # Documentação exclusiva do HUDSON DW (Sugoi)
+│    └── hdc/                  # Documentação exclusiva do HUDSON DC (Daisugi)
+├── diagrams/                  # Diagramas arquiteturais (P1-P8)
+└── specs/                     # Contratos formais (openapi.yaml, schema.sql)
 ```
 
 ## Arquitetura — diagramas existentes (mapeados na Fase 0, não reescritos)
