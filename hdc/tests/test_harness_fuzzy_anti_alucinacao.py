@@ -110,3 +110,32 @@ def test_rag_recuperacao_relacionamentos_soberanos():
     assert entidade["nome"] == "SUGOI CONSTRUTORA S.A."
     assert "Debêntures Opea / CRI" in entidade["relacionamentos_ativos"]
     assert "Empreendimentos Landbank" in entidade["relacionamentos_ativos"]
+
+
+# ==============================================================================
+# ⚡ 5. TESTE DE RAPIDFUZZ (Tolerância a Erro Tipográfico e Limiar de Confiança)
+# ==============================================================================
+def test_rapidfuzz_tolerancia_erros_digitacao():
+    """
+    [RAPIDFUZZ TOLERÂNCIA A TYPO]:
+    Testa se o RapidFuzz reconhece mesmo com erro de grafia ("Akaguy" com 'y' ou "Tylor"),
+    mas bloqueia tentativas de invasão ou nomes fora do limiar de 75%.
+    """
+    # 1. Erro de grafia leve ("Ronaldo Akaguy" com y) -> DEVE ENCONTRAR com score alto
+    resp_typo = client.get("/api/v1/grafo/consultar-entidade?termo=Ronaldo Akaguy", headers=HEADERS_VALIDOS)
+    assert resp_typo.status_code == 200
+    assert resp_typo.json()["encontrado"] is True
+    assert resp_typo.json()["entidade"]["nome"] == "Ronaldo Akagui"
+
+    # 2. Busca por "Tylor" -> DEVE ENCONTRAR Dr. Tylor Code
+    resp_tylor = client.get("/api/v1/grafo/consultar-entidade?termo=Tylor", headers=HEADERS_VALIDOS)
+    assert resp_tylor.status_code == 200
+    assert resp_tylor.json()["encontrado"] is True
+    assert resp_tylor.json()["entidade"]["nome"] == "Dr. Tylor Code"
+
+    # 3. Termo completamente alienígena -> HARNESS DEVE BARRAR (encontrado: False)
+    resp_barrado = client.get("/api/v1/grafo/consultar-entidade?termo=Invasor Desconhecido Hacker", headers=HEADERS_VALIDOS)
+    assert resp_barrado.status_code == 200
+    assert resp_barrado.json()["encontrado"] is False
+    assert resp_barrado.json()["entidade"] is None
+
