@@ -36,6 +36,7 @@ Este repositório abriga os dois pilares integrados do ecossistema HUDSON, organ
 | **DAI-INT** | [`docs/hdc/DOCUMENTO_INTEGRACAO_DAI_HUDSON.md`](hdc/DOCUMENTO_INTEGRACAO_DAI_HUDSON.md) | Especificação oficial de integração DAI × HUDSON v1.2.0 | ✅ Concluído |
 | **HDC-OCI** | [`docs/hdc/HDC-ESPECIFICACAO-TECNICA-E-DEPLOY-OCI.md`](hdc/HDC-ESPECIFICACAO-TECNICA-E-DEPLOY-OCI.md) | Especificação Técnica, Modelagem de Banco e Guia de Deploy na Oracle Cloud (OCI) | ✅ Concluído |
 | **HOMOLOG** | [`docs/hdc/HDC-RELATORIO-HOMOLOGACAO-E-CIRCUITO-PAM.md`](hdc/HDC-RELATORIO-HOMOLOGACAO-E-CIRCUITO-PAM.md) | Relatório Oficial de Homologação E2E (PAM, DAI, HDC, HDW) e Testes de SoD | ✅ Concluído |
+| **ATA-SUBIDA**| [`docs/hdc/HDC-ATA-HOMOLOGACAO-E-SUBIDA-OCI.md`](hdc/HDC-ATA-HOMOLOGACAO-E-SUBIDA-OCI.md) | Ata Oficial de Homologação, Subida na Oracle Cloud e Broadcast Corporativo | ✅ Concluído |
 | **HDC-SQL** | [`hdc/hdc_schema.sql`](../hdc/hdc_schema.sql) | DDL PostgreSQL 16 (Tenants, Event Sourcing, Auditoria SoD e Alertas P1) | ✅ Concluído |
 | **HDC-CODE**| [`hdc/README.md`](../hdc/README.md) | Manual de execução do HDC com Docker Compose e FastAPI :9000 | ✅ Concluído |
 | **TESTS**   | [`hdc/tests/`](../hdc/tests/) | Suíte de testes automatizados (API, Harness Anti-Alucinação e Circuito E2E) | ✅ Concluído |
