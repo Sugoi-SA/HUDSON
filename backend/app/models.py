@@ -36,6 +36,18 @@ class Item(Base):
     processed_at: Mapped[Optional[object]] = mapped_column(DateTime(timezone=True), nullable=True)
     search_vector: Mapped[Optional[object]] = mapped_column(TSVECTOR, nullable=True)
 
+    # Metadados de Origem e Rastreamento de Ronda (v2.0)
+    nome_arquivo_original: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    caminho_origem: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    extensao_original: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    tamanho_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    mtime_origem: Mapped[Optional[object]] = mapped_column(DateTime(timezone=True), nullable=True)
+    ronda_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    usuario_captura: Mapped[Optional[str]] = mapped_column(String(255), server_default="sistema", nullable=True)
+    maquina_origem: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status_desbloqueio: Mapped[Optional[str]] = mapped_column(String(50), server_default="original", nullable=True)
+    metodo_desbloqueio: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
 
 class CustodyLog(Base):
     __tablename__ = "custody_log"
