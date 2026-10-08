@@ -1,0 +1,7 @@
+__pycache__/
+.venv/
+*.env
+secrets/
+*.ovpn
+.pytest_cache/
+
